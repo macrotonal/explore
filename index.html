@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Macrotonal Chord Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,400&family=Cormorant+SC:wght@300;400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#070a08;--text:#d4e8d8;
+  --dim:rgba(212,232,216,0.45);--faint:rgba(212,232,216,0.2);
+  --border:rgba(74,158,104,0.15);--card:rgba(10,16,12,0.95);
+  --red:#ff6b55;--yellow:#ffd84a;--green:#4ed87a;--blue:#5ab4ff;
+}
+body{background:var(--bg);color:var(--text);font-family:'Cormorant Garamond',Georgia,serif;min-height:100vh;padding:32px 16px 48px}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at 25% 70%,rgba(15,50,25,0.18) 0%,transparent 55%),
+             radial-gradient(ellipse at 75% 25%,rgba(10,35,18,0.12) 0%,transparent 55%)}
+.frame{position:fixed;inset:10px;border:1px solid rgba(74,158,104,0.1);pointer-events:none}
+.wrap{position:relative;max-width:860px;margin:0 auto}
+
+.header{text-align:center;margin-bottom:28px}
+.eyebrow{font-size:9px;letter-spacing:7px;text-transform:uppercase;color:rgba(74,158,104,0.45);margin-bottom:12px;display:block}
+h1{font-size:clamp(22px,4vw,34px);font-weight:300;font-style:italic;color:#e4f2e8;margin-bottom:6px}
+.sub{font-size:13px;color:var(--dim)}
+.rule{width:40px;height:1px;background:linear-gradient(90deg,transparent,rgba(74,158,104,0.4),transparent);margin:14px auto}
+
+/* Category tabs */
+.cats{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-bottom:20px}
+.cat-btn{background:transparent;border:1px solid rgba(74,158,104,0.18);color:var(--dim);
+  padding:6px 16px;border-radius:2px;font-family:'Cormorant SC',serif;font-size:11px;
+  letter-spacing:3px;cursor:pointer;transition:all 0.2s}
+.cat-btn.active{border-color:rgba(74,158,104,0.5);color:var(--text);background:rgba(74,158,104,0.08)}
+.cat-btn:hover{border-color:rgba(74,158,104,0.35);color:var(--text)}
+
+/* Playing panel */
+.playing-panel{
+  background:var(--card);border:1px solid var(--border);border-radius:4px;
+  padding:18px 22px;margin-bottom:18px;min-height:72px;
+  display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  transition:border-color 0.4s
+}
+.playing-notes{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.pn-chip{
+  padding:6px 14px;border-radius:2px;font-family:'Cormorant SC',serif;
+  font-size:14px;letter-spacing:1px;border:1px solid transparent;
+  transition:all 0.3s
+}
+.playing-info{flex:1}
+.playing-name{font-size:16px;color:var(--text);margin-bottom:4px}
+.playing-desc{font-size:12px;color:var(--dim);line-height:1.6}
+.playing-empty{font-size:13px;color:var(--faint);font-style:italic}
+
+/* Chord grid */
+.chord-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:10px;margin-bottom:20px
+}
+.chord-card{
+  background:var(--card);border:1px solid var(--border);border-radius:3px;
+  padding:16px 18px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden
+}
+.chord-card:hover{border-color:rgba(74,158,104,0.35);transform:translateY(-1px)}
+.chord-card.playing{border-color:rgba(74,158,104,0.6);box-shadow:0 0 20px rgba(74,158,104,0.08)}
+.chord-name{font-size:14px;color:var(--text);margin-bottom:6px;font-style:italic}
+.chord-notes{display:flex;gap:5px;margin-bottom:8px;flex-wrap:wrap}
+.cn-dot{
+  width:28px;height:28px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-family:'Cormorant SC',serif;font-size:11px;
+  border:1px solid transparent;flex-shrink:0
+}
+.chord-desc{font-size:11px;color:var(--faint);line-height:1.5}
+.chord-deg{font-size:9px;color:var(--faint);margin-top:6px;letter-spacing:1px}
+
+/* Play indicator */
+.play-dot{
+  position:absolute;top:12px;right:12px;width:7px;height:7px;border-radius:50%;
+  border:1px solid rgba(74,158,104,0.3);transition:all 0.2s
+}
+.chord-card.playing .play-dot{background:rgba(74,158,104,0.8);border-color:rgba(74,158,104,0.8);box-shadow:0 0 6px rgba(74,158,104,0.5)}
+
+/* Root selector */
+.root-wrap{display:flex;gap:6px;justify-content:center;margin-bottom:18px;flex-wrap:wrap;align-items:center}
+.root-label{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--faint);margin-right:4px}
+.root-btn{background:transparent;border:1px solid rgba(74,158,104,0.15);color:var(--faint);
+  padding:5px 12px;border-radius:2px;font-family:'Cormorant SC',serif;font-size:11px;
+  letter-spacing:2px;cursor:pointer;transition:all 0.2s}
+.root-btn.active{border-color:rgba(74,158,104,0.5);color:var(--text);background:rgba(74,158,104,0.08)}
+.root-btn:hover{border-color:rgba(74,158,104,0.35);color:var(--text)}
+
+/* Sustain toggle */
+.controls-row{display:flex;gap:8px;justify-content:center;margin-bottom:20px}
+.ctrl-btn{background:transparent;border:1px solid rgba(74,158,104,0.15);color:var(--faint);
+  padding:5px 16px;border-radius:2px;font-family:'Cormorant SC',serif;font-size:11px;
+  letter-spacing:2px;cursor:pointer;transition:all 0.2s}
+.ctrl-btn.active{border-color:rgba(74,158,104,0.45);color:var(--text);background:rgba(74,158,104,0.07)}
+
+.footer{text-align:center;font-size:9px;color:var(--faint);letter-spacing:3px;text-transform:uppercase;margin-top:24px}
+
+/* Scales */
+.view-toggle{display:flex;gap:8px;justify-content:center;margin-bottom:20px}
+.view-btn{background:transparent;border:1px solid rgba(74,158,104,0.2);color:var(--faint);
+  padding:7px 28px;border-radius:2px;font-family:'Cormorant SC',serif;font-size:12px;
+  letter-spacing:4px;cursor:pointer;transition:all 0.2s}
+.view-btn.active{border-color:rgba(74,158,104,0.55);color:var(--text);background:rgba(74,158,104,0.09)}
+
+.scale-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin-bottom:20px}
+.scale-card{background:var(--card);border:1px solid var(--border);border-radius:3px;
+  padding:16px 18px;cursor:pointer;transition:all 0.2s;position:relative}
+.scale-card:hover{border-color:rgba(74,158,104,0.35);transform:translateY(-1px)}
+.scale-card.playing{border-color:rgba(74,158,104,0.6);box-shadow:0 0 20px rgba(74,158,104,0.08)}
+.scale-name{font-size:14px;color:var(--text);margin-bottom:6px;font-style:italic}
+.scale-dots{display:flex;gap:3px;margin-bottom:8px;flex-wrap:wrap}
+.sd{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:9px;font-family:'Cormorant SC',serif;border:1px solid transparent;flex-shrink:0}
+.scale-desc{font-size:11px;color:var(--faint);line-height:1.5}
+.scale-info{font-size:9px;color:var(--faint);margin-top:6px;letter-spacing:1px}
+.play-dot{position:absolute;top:12px;right:12px;width:7px;height:7px;border-radius:50%;
+  border:1px solid rgba(74,158,104,0.3);transition:all 0.2s}
+.scale-card.playing .play-dot{background:rgba(74,158,104,0.8);border-color:rgba(74,158,104,0.8)}
+
+.scale-controls{display:flex;gap:6px;justify-content:center;margin-bottom:18px;flex-wrap:wrap}
+.sc-btn{background:transparent;border:1px solid rgba(74,158,104,0.18);color:var(--faint);
+  padding:5px 14px;border-radius:2px;font-family:'Cormorant SC',serif;font-size:11px;
+  letter-spacing:2px;cursor:pointer;transition:all 0.2s}
+.sc-btn.active{border-color:rgba(74,158,104,0.5);color:var(--text);background:rgba(74,158,104,0.08)}
+</style>
+</head>
+<body>
+<div class="frame"></div>
+<div class="wrap">
+
+  <div class="header">
+    <span class="eyebrow">Macrotonal Tuning System</span>
+    <h1 id="mainTitle">Chord Explorer</h1>
+    <div class="sub" id="mainSub">Triads and clusters derived from the harmonic structure · click any card to hear</div>
+    <div class="rule"></div>
+  </div>
+
+  <!-- View toggle -->
+  <div class="view-toggle">
+    <button class="view-btn active" id="viewChords" onclick="setView('chords')">Chords</button>
+    <button class="view-btn"        id="viewScales" onclick="setView('scales')">Scales</button>
+  </div>
+
+  <!-- Root selector -->
+  <div class="root-wrap">
+    <span class="root-label">Root</span>
+    <div id="rootWrap"></div>
+  </div>
+
+  <!-- ── CHORDS VIEW ── -->
+  <div id="chordsView">
+    <!-- Sustain / single -->
+    <div class="controls-row">
+      <button class="ctrl-btn active" id="btnSingle"  onclick="setSustain(false)">Single</button>
+      <button class="ctrl-btn"        id="btnSustain" onclick="setSustain(true)">Sustain</button>
+    </div>
+    <!-- Category tabs -->
+    <div class="cats" id="catWrap"></div>
+    <!-- Playing panel -->
+    <div class="playing-panel" id="playingPanel">
+      <div class="playing-empty">Select a chord to hear it</div>
+    </div>
+    <!-- Chord grid -->
+    <div class="chord-grid" id="chordGrid"></div>
+  </div>
+
+  <!-- ── SCALES VIEW ── -->
+  <div id="scalesView" style="display:none">
+    <!-- Playback controls -->
+    <div class="scale-controls">
+      <button class="sc-btn active" id="scAsc"  onclick="setScaleDir('asc')">Ascending</button>
+      <button class="sc-btn"        id="scDesc" onclick="setScaleDir('desc')">Descending</button>
+      <button class="sc-btn"        id="scBoth" onclick="setScaleDir('both')">Up + Down</button>
+      <button class="sc-btn"        id="scLoop" onclick="setScaleDir('loop')">Loop</button>
+    </div>
+    <!-- Tempo -->
+    <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-bottom:18px">
+      <span style="font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--faint)">Tempo</span>
+      <button class="sc-btn active" id="tempoSlow"   onclick="setTempo(900)">Slow</button>
+      <button class="sc-btn"        id="tempoMedium" onclick="setTempo(500)">Medium</button>
+      <button class="sc-btn"        id="tempoFast"   onclick="setTempo(260)">Fast</button>
+    </div>
+    <!-- Playing panel -->
+    <div class="playing-panel" id="scalePanel">
+      <div class="playing-empty">Select a scale to hear it</div>
+    </div>
+    <!-- Scale grid -->
+    <div class="scale-grid" id="scaleGrid"></div>
+  </div>
+
+  <div class="footer">125¢ per degree · pure 4th = deg 5 · pure min 7th = deg 9 · no usable fifth</div>
+</div>
+
+<script>
+// ── System ────────────────────────────────────────────────────
+const BASE = 261.63, CS = 125
+const STD  = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
+const DNAMES = ['Unison','Macro 2nd','Macro 3rd','Neutral 3rd','Pure 4th','Wide Tritone',
+                'Macro 6th','Near Maj. 6th','Pure Min. 7th','Wide Maj. 7th','Macro 9th','Macro 10th']
+const COLS = [
+  {name:'Red',    hex:'#ff6b55',bg:'rgba(255,107,85,0.15)', border:'rgba(255,107,85,0.5)'},
+  {name:'Yellow', hex:'#ffd84a',bg:'rgba(255,216,74,0.15)', border:'rgba(255,216,74,0.5)'},
+  {name:'Green',  hex:'#4ed87a',bg:'rgba(78,216,122,0.15)',border:'rgba(78,216,122,0.5)'},
+  {name:'Blue',   hex:'#5ab4ff',bg:'rgba(90,180,255,0.15)',border:'rgba(90,180,255,0.5)'},
+]
+const hz = c => BASE * Math.pow(2, c/1200)
+
+function noteLabel(deg) {
+  const std = Math.round(deg*125/100)
+  return STD[((std%12)+12)%12]
+}
+
+// ── Chord definitions ─────────────────────────────────────────
+// Each chord: { name, degrees (0-indexed from root), desc, category }
+// degrees are offsets from the chosen root degree
+
+const CHORD_DEFS = [
+  // QUARTAL — stacked pure fourths
+  { name:'Pure Quartal',    degs:[0,4,8],   cat:'quartal',
+    desc:'Three stacked near-pure fourths. The structural skeleton of the system — degrees 1, 5, 9. Maximum consonance.' },
+  { name:'Quartal II',      degs:[1,5,9],   cat:'quartal',
+    desc:'Yellow quartal stack. Same architecture as Pure Quartal, offset one degree. Bright and slightly restless.' },
+  { name:'Quartal III',     degs:[2,6,10],  cat:'quartal',
+    desc:'Green quartal stack. Floating quality — all three notes sit between familiar landmarks.' },
+  { name:'Quartal IV',      degs:[3,7,11],  cat:'quartal',
+    desc:'Blue quartal stack. The most ambiguous quartal voicing — all three degrees unnamed in conventional theory.' },
+
+  // RGB — one from each colour group
+  { name:'RGB Core',        degs:[0,2,3],   cat:'rgb',
+    desc:'Red + Green + Blue. Additive colour mixing in sound — one anchor, two floating. The harmonic core of RGB.' },
+  { name:'RGB Shift I',     degs:[0,2,7],   cat:'rgb',
+    desc:'Root anchored with green and a wide blue. Shimmer with more space between the upper voices.' },
+  { name:'RGB Shift II',    degs:[0,6,3],   cat:'rgb',
+    desc:'Root, wide tritone, neutral third. Luminous and unresolved simultaneously.' },
+  { name:'RGB Wide',        degs:[0,6,7],   cat:'rgb',
+    desc:'Red root, yellow tritone, green sixth. Spread voicing — the colours separated by register.' },
+  { name:'RGB Upper',       degs:[4,6,7],   cat:'rgb',
+    desc:'Pure fourth as anchor with yellow and green upper voices. Brighter register, same shimmer.' },
+
+  // SPECTRAL CLUSTERS — adjacent degrees, tight dissonance
+  { name:'Semitone Cluster',degs:[0,1,2],   cat:'cluster',
+    desc:'Three adjacent degrees. 125¢ + 125¢. Dense, shimmering — like a string chord played with maximum pressure.' },
+  { name:'Wide Cluster',    degs:[0,1,3],   cat:'cluster',
+    desc:'Root, macro 2nd, neutral third. Tight but with a gap — slightly more open than the full cluster.' },
+  { name:'Inner Cluster',   degs:[1,2,3],   cat:'cluster',
+    desc:'Three middle degrees with no root anchor. Entirely unnamed harmonic territory — pure texture.' },
+  { name:'Spread Cluster',  degs:[0,2,4],   cat:'cluster',
+    desc:'Degrees 1, 3, 5 — alternating, with gaps. A looser cluster that resolves partially toward the fourth.' },
+
+  // OPEN VOICINGS — wider spacing
+  { name:'Open Fourth',     degs:[0,4],     cat:'open',
+    desc:'Root and pure fourth only. Bare and ancient. The most stable dyad in the system.' },
+  { name:'Open Seventh',    degs:[0,8],     cat:'open',
+    desc:'Root and near-pure minor seventh. Spacious and resonant — the outer boundary of the anchor chord.' },
+  { name:'Hollow Fifth',    degs:[0,5],     cat:'open',
+    desc:'Root and wide tritone. No equivalent in standard harmony — open but with a slight luminous tension.' },
+  { name:'Macro Reach',     degs:[0,10],    cat:'open',
+    desc:'Root and macro 9th — 50¢ above the octave. The system stretching past the standard frame.' },
+  { name:'Cycle Span',      degs:[0,11],    cat:'open',
+    desc:'Root and macro 10th — 175¢ above octave. The widest interval before the cycle closes. Vast.' },
+
+  // MODAL — chords with a clear colour flavour
+  { name:'All Red',         degs:[0,4,8],   cat:'modal',
+    desc:'Pure red chord — C, F, Bb. The anchor. Every note a standard pitch, near-pure acoustic intervals.' },
+  { name:'All Yellow',      degs:[1,5,9],   cat:'modal',
+    desc:'Pure yellow chord — all three notes 25¢ sharp of standard. Same architecture as All Red, shifted up.' },
+  { name:'All Green',       degs:[2,6,10],  cat:'modal',
+    desc:'Pure green chord — all three notes 50¢ flat. Floating and unnamed. A world parallel to the anchor.' },
+  { name:'All Blue',        degs:[3,7,11],  cat:'modal',
+    desc:'Pure blue chord — all three notes 25¢ flat. Warm and slightly adrift — closest to familiar but not quite.' },
+
+  // ASYMMETRIC — unusual combinations
+  { name:'Tritone Stack',   degs:[0,5,10],  cat:'asymmetric',
+    desc:'Root, wide tritone, macro 9th. Symmetrical in cents (625+625=1250). Luminous symmetry above the octave.' },
+  { name:'Neutral Triad',   degs:[0,3,8],   cat:'asymmetric',
+    desc:'Root, neutral third, near major sixth. Between major and minor in a way that has no standard name.' },
+  { name:'Macro Triad',     degs:[0,4,10],  cat:'asymmetric',
+    desc:'Pure fourth with macro ninth on top. One foot in familiar harmony, one above the octave.' },
+  { name:'Colour Cross',    degs:[1,4,7],   cat:'asymmetric',
+    desc:'Yellow, red, green — skipping one colour in between. Restless, asymmetric, no stable anchor.' },
+  { name:'Ghost Chord',     degs:[2,5,9],   cat:'asymmetric',
+    desc:'Green, red, red — neutral third against a pure fourth and minor seventh. Floats above the anchor.' },
+
+  // TETRADS — 4 note chords
+  { name:'Full Anchor',       degs:[0,4,8,1],   cat:'tetrad',
+    desc:'The red anchor triad plus the yellow macro 2nd. The home chord with added brightness — a gentle departure from pure stability.' },
+  { name:'Quartal 4th',       degs:[0,4,8,3],   cat:'tetrad',
+    desc:'Three pure fourths plus a blue neutral third. The anchor with a floating lower colour — adds depth without disruption.' },
+  { name:'RGBY',              degs:[0,2,3,1],   cat:'tetrad',
+    desc:'One note from each colour group. Red + Green + Blue + Yellow. The full spectrum sounding simultaneously — maximum shimmer.' },
+  { name:'RGBY Wide',         degs:[0,3,6,9],   cat:'tetrad',
+    desc:'Evenly spaced across the cycle — degrees 1, 4, 7, 10. One from each colour, spread wide. Symmetrical and luminous.' },
+  { name:'Macro Seventh',     degs:[0,4,8,10],  cat:'tetrad',
+    desc:'Pure anchor triad plus the wide major seventh. The home chord reaching upward — familiar structure with a straining top note.' },
+  { name:'Cluster Four',      degs:[0,1,2,3],   cat:'tetrad',
+    desc:'Four adjacent degrees — all four colours in sequence. The densest possible voicing. Maximum spectral complexity.' },
+  { name:'Spread Four',       degs:[0,2,5,8],   cat:'tetrad',
+    desc:'Root, green 3rd, red 6th, green 9th — alternating colours with breathing room. Shimmers but with space.' },
+  { name:'Open Tetrad',       degs:[0,4,7,8],   cat:'tetrad',
+    desc:'Pure fourth, macro sixth, near major sixth. Wide voicing — the middle register left open, top voices close together.' },
+  { name:'RGB + Anchor',      degs:[0,2,3,4],   cat:'tetrad',
+    desc:'The RGB core chord plus the pure fourth. Adds stability to the shimmer — one foot on the ground.' },
+  { name:'Above the Octave',  degs:[0,4,8,10],  cat:'tetrad',
+    desc:'Anchor triad reaching into macrotonal territory — the pure fourth cycle crowned with a macro ninth above the octave.' },
+  { name:'Symmetric Four',    degs:[0,3,6,9],   cat:'tetrad',
+    desc:'Degrees 1, 4, 7, 10 — equally spaced at 375¢ intervals. A diminished-like symmetry unique to the macrotonal system.' },
+  { name:'Two Colour Pairs',  degs:[0,1,4,5],   cat:'tetrad',
+    desc:'Red+Yellow at the bottom, Red+Yellow a pure fourth higher. Two colour pairs stacked — parallel shimmer.' },
+  { name:'Chromatic Four',    degs:[0,1,8,9],   cat:'tetrad',
+    desc:'Two adjacent pairs separated by a wide interval. Creates a sense of two worlds — one cluster low, one cluster high.' },
+  { name:'Full Spectrum',     degs:[0,3,4,8],   cat:'tetrad',
+    desc:'Root, blue neutral third, red pure fourth, red minor seventh. A modal four-note chord with clear colour hierarchy.' },
+
+  // WIDE — multi-octave voicings with harmonic Hz relationships
+  // Steps > 11 span into higher cycles. Ratios verified against actual Hz values.
+  { name:'Fourth Cascade',    degs:[0,4,8,12],  cat:'wide', wide:true,
+    desc:'Three stacked near-pure fourths (4:3) spanning one full 1500¢ cycle. 261.6 → 349.2 → 466.2 → 622.3 Hz. The triangle made audible top to bottom.' },
+  { name:'Double Anchor',     degs:[0,4,8,12,16,20], cat:'wide', wide:true,
+    desc:'Two complete anchor chords across two cycles. C-F-Bb repeated an octave higher. Six notes, three pure fourths stacked twice. Vast and resonant.' },
+  { name:'Seventh Tower',     degs:[0,8,16],    cat:'wide', wide:true,
+    desc:'Two stacked near-pure minor sevenths (16:9). 261.6 → 466.2 → 830.6 Hz. Each interval is 3.9¢ from pure — the tower rings with minimal beating.' },
+  { name:'Triple Seventh',    degs:[0,8,16,24], cat:'wide', wide:true,
+    desc:'Three stacked 16:9 minor sevenths spanning three full registers. 261.6 → 466.2 → 830.6 → 1480 Hz. The widest acoustically grounded voicing in the system.' },
+  { name:'Sixth Spread',      degs:[0,7,14],    cat:'wide', wide:true,
+    desc:'Two stacked near-pure major sixths (5:3, 9.4¢ off). 261.6 → 433.7 → 718.9 Hz. Less pure than the fourth tower but with a warmer, more open character.' },
+  { name:'Wide Quartal',      degs:[0,4,16],    cat:'wide', wide:true,
+    desc:'Root and fourth close together, then another fourth two cycles higher. 261.6 → 349.2 → 830.6 Hz. The quartal relationship at extreme range.' },
+  { name:'Wide Anchor',       degs:[0,4,20],    cat:'wide', wide:true,
+    desc:'Root, pure fourth, then minor seventh two cycles up. 261.6 → 349.2 → 1108 Hz. The anchor chord stretched into a three-register span.' },
+  { name:'Harmonic Series',   degs:[0,4,7,12],  cat:'wide', wide:true,
+    desc:'The closest this system gets to a natural harmonic series. Steps 4 (4:3), 7 (5:3), 12 (+1 cycle). 261.6 → 349.2 → 433.7 → 622.3 Hz. Stacked partials.' },
+  { name:'Mirror Fourth',     degs:[0,4,12,16], cat:'wide', wide:true,
+    desc:'Pure fourth low, cycle repeat, then another fourth. Two fourths mirrored across a 1500¢ gap. 261.6 → 349.2 → 622.3 → 830.6 Hz. Symmetrical arch.' },
+  { name:'Wide RGB',          degs:[0,2,15],    cat:'wide', wide:true,
+    desc:'Root, green macro 3rd, then blue neutral third one cycle up. 261.6 → 302.3 → 772.8 Hz. The RGB shimmer stretched over two registers.' },
+  { name:'Seventh + Fourth',  degs:[0,8,12,16], cat:'wide', wide:true,
+    desc:'Root, pure min 7th, then pure fourth and another 4th above. 261.6 → 466.2 → 622.3 → 830.6 Hz. Two harmonic relationships interlocking across two cycles.' },
+  { name:'Spread Cycle',      degs:[0,3,7,14],  cat:'wide', wide:true,
+    desc:'Root, 5:4 approx, 5:3 approx, then 5:3 one cycle up. 261.6 → 324.9 → 433.7 → 718.9 Hz. Near-harmonic series with a floating quality from the 11¢ third.' },
+  { name:'Two Worlds',        degs:[0,1,12,13], cat:'wide', wide:true,
+    desc:'Two adjacent notes low, the same pair one cycle up. 261.6 → 281.2 → 622.3 → 668.9 Hz. A paired cluster echoed in a higher register — two worlds answering each other.' },
+]
+
+const CATEGORIES = [
+  { id:'all',        label:'All' },
+  { id:'quartal',    label:'Quartal' },
+  { id:'rgb',        label:'RGB' },
+  { id:'cluster',    label:'Cluster' },
+  { id:'open',       label:'Open' },
+  { id:'modal',      label:'Modal' },
+  { id:'asymmetric', label:'Asymmetric' },
+  { id:'tetrad',     label:'Tetrad' },
+  { id:'wide',       label:'Wide' },
+]
+
+// ── State ─────────────────────────────────────────────────────
+let rootDeg    = 0    // 0-11
+let currentCat = 'all'
+let sustain    = false
+let playingCard = null
+
+// Root note options (first 12 degrees)
+const ROOT_NOTES = Array.from({length:12},(_,i)=>({
+  deg:i, label:noteLabel(i), col:COLS[i%4]
+}))
+
+// ── Audio ─────────────────────────────────────────────────────
+let ctx=null, oscs=[]
+const ac=()=>{ if(!ctx) ctx=new (window.AudioContext||window.webkitAudioContext)(); if(ctx.state==='suspended') ctx.resume(); return ctx }
+function killAll(){
+  oscs.forEach(o=>{try{o.stop()}catch(e){}})
+  oscs=[]
+  if(playingCard){ document.getElementById(playingCard)?.classList.remove('playing'); playingCard=null }
+}
+function mkTone(cents,t,dur,vol=0.18){
+  const c=ac(),o=c.createOscillator(),g=c.createGain()
+  o.type='sine'; o.frequency.value=hz(cents)
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+0.06); g.gain.exponentialRampToValueAtTime(0.001,t+dur)
+  o.connect(g); g.connect(c.destination); o.start(t); o.stop(t+dur+0.08); oscs.push(o)
+}
+function mkSustain(cents,t,vol=0.16){
+  const c=ac(),o=c.createOscillator(),g=c.createGain()
+  o.type='sine'; o.frequency.value=hz(cents)
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(vol,t+0.08)
+  o.connect(g); g.connect(c.destination); o.start(t); oscs.push(o)
+}
+
+function playChord(chord, cardId) {
+  killAll()
+  playingCard = cardId
+  document.getElementById(cardId)?.classList.add('playing')
+
+  const t = ac().currentTime
+  const actualDegs = chord.degs.map(d => ((rootDeg + d) % 12 + 12) % 12)
+  const centsValues = chord.wide
+    ? chord.degs.map(d => (rootDeg + d) * CS)   // wide: keep full step range
+    : actualDegs.map(d => d * CS)                 // normal: within one cycle
+
+  if (sustain) {
+    centsValues.forEach((c,i) => mkSustain(c, t, i===0 ? 0.2 : 0.15))
+  } else {
+    const dur = chord.degs.length > 2 ? 3.5 : 4.0
+    centsValues.forEach((c,i) => mkTone(c, t, dur, i===0 ? 0.2 : 0.16))
+    setTimeout(()=>{ document.getElementById(cardId)?.classList.remove('playing'); if(playingCard===cardId) playingCard=null }, (dur+0.2)*1000)
+  }
+
+  // Update playing panel
+  const panel = document.getElementById('playingPanel')
+  const noteChips = actualDegs.map(d => {
+    const col = COLS[d%4]
+    return `<div class="pn-chip" style="background:${col.bg};border-color:${col.border};color:${col.hex}">
+      ${noteLabel(d)} <span style="opacity:0.5;font-size:10px">deg${d+1}</span>
+    </div>`
+  }).join('')
+
+  panel.style.borderColor = 'rgba(74,158,104,0.3)'
+  panel.innerHTML = `
+    <div class="playing-notes">${noteChips}</div>
+    <div class="playing-info">
+      <div class="playing-name">${chord.name}</div>
+      <div class="playing-desc">${chord.desc}</div>
+    </div>
+  `
+}
+
+// ── UI builders ───────────────────────────────────────────────
+function setSustain(s) {
+  sustain = s
+  document.getElementById('btnSingle').classList.toggle('active', !s)
+  document.getElementById('btnSustain').classList.toggle('active', s)
+  if (!s) killAll()
+}
+
+function buildRootButtons() {
+  const wrap = document.getElementById('rootWrap')
+  wrap.style.cssText='display:flex;gap:5px;flex-wrap:wrap;justify-content:center'
+  ROOT_NOTES.forEach(n => {
+    const b=document.createElement('button')
+    b.className='root-btn'+(n.deg===0?' active':'')
+    b.id='root'+n.deg
+    b.textContent=n.label
+    b.style.color=n.col.hex
+    b.style.borderColor=n.deg===0?n.col.border:'rgba(74,158,104,0.15)'
+    b.onclick=()=>setRoot(n.deg)
+    wrap.appendChild(b)
+  })
+}
+
+function setRoot(deg) {
+  rootDeg=deg
+  ROOT_NOTES.forEach(n=>{
+    const b=document.getElementById('root'+n.deg)
+    if(!b) return
+    b.classList.toggle('active',n.deg===deg)
+    b.style.borderColor=n.deg===deg?n.col.border:'rgba(74,158,104,0.15)'
+  })
+  killAll(); killScale()
+  if (document.getElementById('scalesView').style.display !== 'none') {
+    renderScales()
+    document.getElementById('scalePanel').style.borderColor=''
+    document.getElementById('scalePanel').innerHTML='<div class="playing-empty">Select a scale to hear it</div>'
+  } else {
+    renderChords()
+    document.getElementById('playingPanel').style.borderColor=''
+    document.getElementById('playingPanel').innerHTML='<div class="playing-empty">Select a chord to hear it</div>'
+  }
+}
+
+function buildCatButtons() {
+  const wrap=document.getElementById('catWrap')
+  CATEGORIES.forEach(c=>{
+    const b=document.createElement('button')
+    b.className='cat-btn'+(c.id==='all'?' active':'')
+    b.id='cat'+c.id
+    b.textContent=c.label
+    b.onclick=()=>setCat(c.id)
+    wrap.appendChild(b)
+  })
+}
+
+function setCat(id) {
+  currentCat=id
+  CATEGORIES.forEach(c=>document.getElementById('cat'+c.id)?.classList.toggle('active',c.id===id))
+  renderChords()
+}
+
+function renderChords() {
+  const grid=document.getElementById('chordGrid')
+  grid.innerHTML=''
+  const chords=currentCat==='all'?CHORD_DEFS:CHORD_DEFS.filter(c=>c.cat===currentCat)
+
+  chords.forEach((chord,i)=>{
+    const id='chord'+i+chord.name.replace(/\s/g,'')
+    const card=document.createElement('div')
+    card.className='chord-card'
+    card.id=id
+
+    const actualDegs=chord.degs.map(d=>((rootDeg+d)%12+12)%12)
+    const dots=actualDegs.map(d=>{
+      const col=COLS[d%4]
+      return `<div class="cn-dot" style="background:${col.bg};border-color:${col.border};color:${col.hex}">${noteLabel(d)}</div>`
+    }).join('')
+
+    const degStr=actualDegs.map(d=>'deg '+(d+1)).join(' + ')
+
+    card.innerHTML=`
+      <div class="play-dot"></div>
+      <div class="chord-name">${chord.name}</div>
+      <div class="chord-notes">${dots}</div>
+      <div class="chord-desc">${chord.desc}</div>
+      <div class="chord-deg">${degStr}</div>
+    `
+    card.addEventListener('click',()=>playChord(chord,id))
+    grid.appendChild(card)
+  })
+}
+
+// ── Scale definitions ─────────────────────────────────────────
+const SCALE_DEFS = [
+  { name:'Full Chromatic',     degs:[0,1,2,3,4,5,6,7,8,9,10,11],
+    desc:'All 12 degrees. The complete macrotonal palette from root to cycle boundary.' },
+  { name:'Anchor Triad',       degs:[0,4,8],
+    desc:'Only the three pure anchor notes — C, F, Bb. The most consonant scale. Simple and ancient-sounding.' },
+  { name:'Quartal Hexatonic',  degs:[0,1,4,5,8,9],
+    desc:'Pairs of adjacent notes around each anchor point. Six notes with a strong quartal pull.' },
+  { name:'Whole Step Macro',   degs:[0,2,4,6,8,10],
+    desc:'Every other degree — six evenly spaced notes. Alternates red/green and yellow/blue pairs. Open and symmetric.' },
+  { name:'Half Step Macro',    degs:[0,1,2,3,4,5],
+    desc:'The lower half of the cycle. Dense and chromatic, rich with spectral colour.' },
+  { name:'Upper Half',         degs:[6,7,8,9,10,11],
+    desc:'The upper half of the cycle — the more ambiguous, unnamed territory above the wide tritone.' },
+  { name:'Pentatonic I',       degs:[0,2,4,7,8],
+    desc:'Five notes built on the pure fourth with green and blue neighbours. Spacious and floating.' },
+  { name:'Pentatonic II',      degs:[0,3,4,7,8],
+    desc:'Blue-neutral third, pure fourth, macro sixth, minor seventh. A pentatonic with no red upper voice.' },
+  { name:'Pentatonic III',     degs:[0,4,5,8,9],
+    desc:'Anchor notes plus their yellow neighbours. Bright pentatonic with slight upward shimmer.' },
+  { name:'Floating Scale',     degs:[2,3,6,7,10,11],
+    desc:'All green and blue degrees only — no red or yellow. Entirely unnamed territory. A scale with no anchor.' },
+  { name:'Yellow Scale',       degs:[1,5,9],
+    desc:'Pure yellow degrees — the sharp anchor triad. Same structure as Anchor Triad, 25¢ bright.' },
+  { name:'Symmetric Four',     degs:[0,3,6,9],
+    desc:'Equally spaced at 375¢ each — one note per colour. A symmetrical four-note scale unique to this system.' },
+  { name:'Modal I (from F)',   degs:[4,5,6,7,8,9,10,11,0,1,2,3],
+    desc:'Starting the chromatic scale from the pure fourth. Shifts the tonal centre without changing the notes.' },
+  { name:'Modal II (from Bb)', degs:[8,9,10,11,0,1,2,3,4,5,6,7],
+    desc:'Starting from the pure minor seventh. The most stable note as the new root.' },
+  { name:'Anchor + Green',     degs:[0,2,4,6,8,10],
+    desc:'Red anchor notes with their green companions. Six notes, alternating pure and floating.' },
+  { name:'Anchor + Blue',      degs:[0,3,4,7,8,11],
+    desc:'Red anchor notes with their blue neighbours. Warm and slightly flat-leaning throughout.' },
+  { name:'RGB Scale',          degs:[0,2,3,4,6,7,8,10,11],
+    desc:'Red, green and blue degrees only — no yellow. Nine notes. The sonic palette of the RGB composition.' },
+  { name:'Macro Upper',        degs:[0,4,8,10,11],
+    desc:'The anchor triad reaching up into macro territory — degrees 11 and 12 above the octave.' },
+  { name:'Three Colour',       degs:[0,1,2,4,5,6,8,9,10],
+    desc:'Nine degrees — everything except the blue group. A near-complete scale with a clear colour bias.' },
+]
+
+// ── Scale engine ──────────────────────────────────────────────
+let scaleDir   = 'asc'
+let scaleTempo = 900
+let scaleLoopTimer = null
+let playingScaleId = null
+
+function setScaleDir(d) {
+  scaleDir = d
+  ;['Asc','Desc','Both','Loop'].forEach(s =>
+    document.getElementById('sc'+s).classList.toggle('active', s.toLowerCase()===d))
+}
+
+function setTempo(ms) {
+  scaleTempo = ms
+  document.getElementById('tempoSlow').classList.toggle('active', ms===900)
+  document.getElementById('tempoMedium').classList.toggle('active', ms===500)
+  document.getElementById('tempoFast').classList.toggle('active', ms===260)
+}
+
+function killScale() {
+  if (scaleLoopTimer) { clearTimeout(scaleLoopTimer); scaleLoopTimer = null }
+  killAll()
+  if (playingScaleId) {
+    document.getElementById(playingScaleId)?.classList.remove('playing')
+    playingScaleId = null
+  }
+}
+
+function playScaleCard(scale, cardId) {
+  killScale()
+  playingScaleId = cardId
+  document.getElementById(cardId)?.classList.add('playing')
+
+  // Build note sequence from root
+  const degs = scale.degs.map(d => ((rootDeg + d) % 12 + 12) % 12)
+  let seq = degs.map(d => d * CS)
+
+  if (scaleDir === 'desc') seq = [...seq].reverse()
+  else if (scaleDir === 'both') seq = [...seq, ...[...seq].reverse().slice(1)]
+
+  const scheduleSeq = (sequence, startOffset=0) => {
+    const c = ac()
+    const noteDur = Math.max(0.18, scaleTempo/1000 * 0.85)
+    sequence.forEach((cents, i) => {
+      const t = c.currentTime + startOffset + i * (scaleTempo/1000)
+      mkTone(cents, t, noteDur, 0.2)
+    })
+    return sequence.length * (scaleTempo/1000)
+  }
+
+  if (scaleDir === 'loop') {
+    const loopFn = () => {
+      if (playingScaleId !== cardId) return
+      killAll()
+      const dur = scheduleSeq(seq)
+      scaleLoopTimer = setTimeout(loopFn, dur * 1000 + 100)
+    }
+    loopFn()
+  } else {
+    const dur = scheduleSeq(seq)
+    setTimeout(() => {
+      document.getElementById(cardId)?.classList.remove('playing')
+      if (playingScaleId === cardId) playingScaleId = null
+    }, dur * 1000 + 200)
+  }
+
+  // Update panel
+  const col = COLS[((rootDeg) % 4 + 4) % 4]
+  const chips = degs.map(d => {
+    const c = COLS[d%4]
+    return `<div class="pn-chip" style="background:${c.bg};border-color:${c.border};color:${c.hex}">${noteLabel(d)}</div>`
+  }).join('')
+  const panel = document.getElementById('scalePanel')
+  panel.style.borderColor = 'rgba(74,158,104,0.3)'
+  panel.innerHTML = `
+    <div class="playing-notes">${chips}</div>
+    <div class="playing-info">
+      <div class="playing-name">${scale.name} · ${degs.length} notes</div>
+      <div class="playing-desc">${scale.desc}</div>
+    </div>
+  `
+}
+
+function renderScales() {
+  const grid = document.getElementById('scaleGrid')
+  grid.innerHTML = ''
+  SCALE_DEFS.forEach((scale, i) => {
+    const id = 'scale'+i+scale.name.replace(/\s/g,'')
+    const card = document.createElement('div')
+    card.className = 'scale-card'
+    card.id = id
+
+    const degs = scale.degs.map(d => ((rootDeg+d)%12+12)%12)
+    const dots = degs.map(d => {
+      const c = COLS[d%4]
+      return `<div class="sd" style="background:${c.bg};border-color:${c.border};color:${c.hex}">${d+1}</div>`
+    }).join('')
+
+    card.innerHTML = `
+      <div class="play-dot"></div>
+      <div class="scale-name">${scale.name}</div>
+      <div class="scale-dots">${dots}</div>
+      <div class="scale-desc">${scale.desc}</div>
+      <div class="scale-info">${degs.length} degrees · root ${noteLabel(rootDeg)}</div>
+    `
+    card.addEventListener('click', () => playScaleCard(scale, id))
+    grid.appendChild(card)
+  })
+}
+
+// ── View toggle ───────────────────────────────────────────────
+function setView(v) {
+  document.getElementById('chordsView').style.display = v==='chords' ? '' : 'none'
+  document.getElementById('scalesView').style.display = v==='scales' ? '' : 'none'
+  document.getElementById('viewChords').classList.toggle('active', v==='chords')
+  document.getElementById('viewScales').classList.toggle('active', v==='scales')
+  document.getElementById('mainTitle').textContent = v==='chords' ? 'Chord Explorer' : 'Scale Explorer'
+  document.getElementById('mainSub').textContent = v==='chords'
+    ? 'Triads and clusters derived from the harmonic structure · click any card to hear'
+    : 'Scales and modes derived from the system · click to hear ascending, descending or looped'
+  if (v==='scales') renderScales()
+  killAll(); killScale()
+}
+
+// ── Init ──────────────────────────────────────────────────────
+buildRootButtons()
+buildCatButtons()
+renderChords()
+</script>
+</body>
+</html>
